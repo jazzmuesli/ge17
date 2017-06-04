@@ -37,6 +37,6 @@ parties = rbind(parties, data.frame(p=6,Party.Name="Plaid"))
 parties = rbind(parties, data.frame(p=7,Party.Name="Grn"))
 parties = rbind(parties, data.frame(p=8,Party.Name="Other"))
 parties$party = parties$p
-m = merge(yd, parties)
+yd = merge(yd, parties)
 
 write.csv(x = yd, file = "yougov.csv")
