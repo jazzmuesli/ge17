@@ -1,15 +1,18 @@
 setwd("~/ge2017")
-ge15 = read.csv("~/ge2017/ge_2015_results.csv")
-ge10 = read.csv("~/ge2017/ge_2010_results.csv")
+# https://github.com/six50/pipeline
+ge15 = read.csv("https://s3-eu-west-1.amazonaws.com/sixfifty/ge_2010_results.csv")
+ge10 = read.csv("https://s3-eu-west-1.amazonaws.com/sixfifty/ge_2015_results.csv")
 data = cbind(ge10[,c("Constituency.Name","Electorate","Votes","Lab","Con","LD","Grn","UKIP","SNP")], data.frame(year=2010))
 data = rbind(data, cbind(ge15[,c("Constituency.Name","Electorate","Lab","LD","UKIP","SNP")], data.frame(Con=ge15$C, Grn=ge15$Green,Votes=ge15$Valid.Votes, year=2015)))
 data$Constituency.Name = gsub("&", "and", data$Constituency.Name)
-euref = read.csv("~/ge2017/Revised estimates of leave vote in Westminster constituencies - demog_based_estimates.csv")
+# https://docs.google.com/spreadsheets/d/1wTK5dV2_YjCMsUYlwg0l48uWWf44sKgG8uFVMv5OWlA/edit#gid=893960794
+euref = read.csv("Revised estimates of leave vote in Westminster constituencies - demog_based_estimates.csv")
 euref=data.frame(Constituency.Name=euref$Constituency, leave=euref$Figure.to.use, year=2016)
 m = merge(data, euref[,c("Constituency.Name","leave")],by="Constituency.Name",all=T)
 write.csv(x = m, file = "combined.csv")
 
 library(rjson)
+# https://yougov.co.uk/uk-general-election-2017/
 ygov = rjson::fromJSON(file="constituency_detailed_results.json")
 yd = data.frame()
 for (i in 2:length(ygov)) {
