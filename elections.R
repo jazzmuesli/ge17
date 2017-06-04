@@ -52,4 +52,4 @@ for (party in intersect(names(m), parties$Party.Name)) {
 library(plyr)
 
 mm = rbind.fill(m, ygest[,intersect(names(m), names(ygest))])
-mm
+mm = arrange(mm, Constituency.Name, year)
