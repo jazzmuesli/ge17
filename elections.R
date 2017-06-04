@@ -1,3 +1,4 @@
+setwd("~/ge2017")
 ge15 = read.csv("~/ge2017/ge_2015_results.csv")
 ge10 = read.csv("~/ge2017/ge_2010_results.csv")
 head(ge10)
@@ -8,3 +9,34 @@ euref = read.csv("~/ge2017/Revised estimates of leave vote in Westminster consti
 euref=data.frame(Constituency.Name=euref$Constituency, leave=euref$Figure.to.use, year=2016)
 m = merge(data, euref[,c("Constituency.Name","leave")],by="Constituency.Name",all=T)
 write.csv(x = m, file = "combined.csv")
+
+library(rjson)
+ygov = rjson::fromJSON(file="constituency_detailed_results.json")
+yd = data.frame()
+for (i in 2:length(ygov)) {
+  jitems = ygov[[i]]$d
+  for (p in 1:length(jitems)) {
+    if (length(jitems[[p]]) == 3) {
+      item = data.frame(i=i, party=p)
+      item[,c("est","lo","hi")] = jitems[[p]]
+      yd = rbind(yd, item)
+    }
+  }
+}
+
+cnames = data.frame(Constituency.Name=readLines(file("names.txt")))
+cnames$i = 2:(nrow(cnames)+1)
+yd = merge(yd,cnames)
+parties = data.frame()
+parties = rbind(parties, data.frame(p=1,Party.Name="Con"))
+parties = rbind(parties, data.frame(p=2,Party.Name="Lab"))
+parties = rbind(parties, data.frame(p=3,Party.Name="LD"))
+parties = rbind(parties, data.frame(p=4,Party.Name="UKIP"))
+parties = rbind(parties, data.frame(p=5,Party.Name="SNP"))
+parties = rbind(parties, data.frame(p=6,Party.Name="Plaid"))
+parties = rbind(parties, data.frame(p=7,Party.Name="Grn"))
+parties = rbind(parties, data.frame(p=8,Party.Name="Other"))
+parties$party = parties$p
+m = merge(yd, parties)
+
+write.csv(x = yd, file = "yougov.csv")
