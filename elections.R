@@ -40,3 +40,16 @@ parties$party = parties$p
 yd = merge(yd, parties)
 
 write.csv(x = yd, file = "yougov.csv")
+
+ygest = reshape(yd[,c("Constituency.Name","Party.Name","est")], timevar="Party.Name", idvar="Constituency.Name", direction="wide")
+names(ygest) = gsub("est.","pct.", names(ygest))
+ygest$year = 2017
+
+for (party in intersect(names(m), parties$Party.Name)) {
+  m[,paste0("pct.", party)] = m[,party] / m$Votes * 100
+}
+
+library(plyr)
+
+mm = rbind.fill(m, ygest[,intersect(names(m), names(ygest))])
+mm
