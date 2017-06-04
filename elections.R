@@ -1,10 +1,9 @@
 setwd("~/ge2017")
 ge15 = read.csv("~/ge2017/ge_2015_results.csv")
 ge10 = read.csv("~/ge2017/ge_2010_results.csv")
-head(ge10)
 data = cbind(ge10[,c("Constituency.Name","Electorate","Votes","Lab","Con","LD","Grn","UKIP","SNP")], data.frame(year=2010))
 data = rbind(data, cbind(ge15[,c("Constituency.Name","Electorate","Lab","LD","UKIP","SNP")], data.frame(Con=ge15$C, Grn=ge15$Green,Votes=ge15$Valid.Votes, year=2015)))
-View(data[order(data$Constituency.Name),])
+data$Constituency.Name = gsub("&", "and", data$Constituency.Name)
 euref = read.csv("~/ge2017/Revised estimates of leave vote in Westminster constituencies - demog_based_estimates.csv")
 euref=data.frame(Constituency.Name=euref$Constituency, leave=euref$Figure.to.use, year=2016)
 m = merge(data, euref[,c("Constituency.Name","leave")],by="Constituency.Name",all=T)
@@ -52,4 +51,46 @@ for (party in intersect(names(m), parties$Party.Name)) {
 library(plyr)
 
 mm = rbind.fill(m, ygest[,intersect(names(m), names(ygest))])
+mm = merge(mm[,grep("leave",invert = T, names(mm))], aggregate(leave ~ Constituency.Name, mm, max))
 mm = arrange(mm, Constituency.Name, year)
+mm[mm$year==2017,"leave"] = mm[mm$year==2015,"leave"] 
+
+dm = within(merge(mm[mm$year==2015,],mm[mm$year==2017,],by="Constituency.Name"), { 
+  diff.Lab = pct.Lab.y - pct.Lab.x
+  diff.Con = pct.Con.y - pct.Con.x
+  diff.LD = pct.LD.y - pct.LD.x
+  diff.UKIP=pct.UKIP.y-pct.UKIP.x
+  diff.SNP=pct.SNP.y-pct.SNP.x
+  diff.GRN=pct.Grn.y-pct.Grn.x
+})
+dm$leave = dm$leave.x
+names(dm) = gsub("pct.([^\\.]+).x", "pct15.\\1", names(dm))
+names(dm) = gsub("pct.([^\\.]+).y", "pct17.\\1", names(dm))
+names(dm) = gsub("diff.([^\\.]+)", "diff17.\\1", names(dm))
+dm = dm[!is.na(dm$Constituency.Name),]
+dm = dm[,grep("Constituency|leave$|diff17|pct10|pct15|pct17", names(dm),value=T)]
+
+dm = within(merge(dm,mm[mm$year==2010,],by="Constituency.Name"), { 
+  diff15.Lab = pct15.Lab - pct.Lab
+  diff15.LD = pct15.LD - pct.LD
+  diff15.Con = pct15.Con - pct.Con
+  diff15.SNP = pct15.SNP - pct.SNP
+  diff15.Grn = pct15.Grn - pct.Grn
+  diff15.UKIP = pct15.UKIP - pct.UKIP
+})
+dm$leave = dm$leave.x
+names(dm) = gsub("pct\\.([^\\.]+)", "pct10.\\1", names(dm))
+dm = dm[,grep("Constituency|leave$|diff1[57]|pct10|pct15|pct17", names(dm),value=T)]
+  colmapping = data.frame(party=c("UKIP","Grn","SNP","Con","LD","Lab"), colour=c("purple","green", "yellow","blue", "orange","red"))
+prepare = function(name,title) {
+  x = dm[,grep(paste0("Constituency.Name|leave|",name), names(dm), value=T)]
+  head(x)
+  names(x) = gsub(paste0(name,"."), "",names(x))
+  ggplot(melt(x, id.vars = c("leave","Constituency.Name")), aes(x=leave,y=value,colour=variable))+stat_smooth()+scale_colour_manual(values=c("GRN" = "green","UKIP"="purple","Con"="blue","Lab"="red","SNP"="yellow","LD"="orange","Grn" = "green"))+ggtitle(title)
+  
+}
+write.csv(x=dm, file = "dm.csv")
+library(gridExtra)
+grid.arrange(prepare("diff17","%points difference between YG2017 and GE2015"),prepare("diff15", "%points difference between GE2015 and GE2010"))
+
+lm(leave*100 ~ pct.Lab + pct.LD + pct.Con + pct.UKIP, mm[mm$year == 2017,])
