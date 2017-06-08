@@ -5,6 +5,7 @@ ge10 = read.csv("https://s3-eu-west-1.amazonaws.com/sixfifty/ge_2015_results.csv
 data = cbind(ge10[,c("Constituency.Name","Electorate","Votes","Lab","Con","LD","Grn","UKIP","SNP")], data.frame(year=2010))
 data = rbind(data, cbind(ge15[,c("Constituency.Name","Electorate","Lab","LD","UKIP","SNP")], data.frame(Con=ge15$C, Grn=ge15$Green,Votes=ge15$Valid.Votes, year=2015)))
 data$Constituency.Name = gsub("&", "and", data$Constituency.Name)
+data$Lab = data$Lab+ge15$Lab.Co.op
 # https://docs.google.com/spreadsheets/d/1wTK5dV2_YjCMsUYlwg0l48uWWf44sKgG8uFVMv5OWlA/edit#gid=893960794
 euref = read.csv("Revised estimates of leave vote in Westminster constituencies - demog_based_estimates.csv")
 euref=data.frame(Constituency.Name=euref$Constituency, leave=euref$Figure.to.use, year=2016)
@@ -43,6 +44,8 @@ yd = merge(yd, parties)
 
 write.csv(x = yd, file = "yougov.csv")
 
+
+guardian = rjson::fromJSON(file="full.json")
 ygest = reshape(yd[,c("Constituency.Name","Party.Name","est")], timevar="Party.Name", idvar="Constituency.Name", direction="wide")
 names(ygest) = gsub("est.","pct.", names(ygest))
 ygest$year = 2017
@@ -85,15 +88,26 @@ dm$leave = dm$leave.x
 names(dm) = gsub("pct\\.([^\\.]+)", "pct10.\\1", names(dm))
 dm = dm[,grep("Constituency|leave$|diff1[57]|pct10|pct15|pct17", names(dm),value=T)]
   colmapping = data.frame(party=c("UKIP","Grn","SNP","Con","LD","Lab"), colour=c("purple","green", "yellow","blue", "orange","red"))
-prepare = function(name,title) {
-  x = dm[,grep(paste0("Constituency.Name|leave|",name), names(dm), value=T)]
-  head(x)
-  names(x) = gsub(paste0(name,"."), "",names(x))
-  ggplot(melt(x, id.vars = c("leave","Constituency.Name")), aes(x=leave,y=value,colour=variable))+stat_smooth()+scale_colour_manual(values=c("GRN" = "green","UKIP"="purple","Con"="blue","Lab"="red","SNP"="yellow","LD"="orange","Grn" = "green"))+ggtitle(title)
+dm$leave_pos=order(dm$leave)
   
+prepare = function(name,title,vname="leave") {
+  
+  x = dm[,grep(paste0("Constituency.Name|",vname,"$|",name), names(dm), value=T)]
+  names(x) = gsub(paste0(name,"."), "",names(x))
+  melted = melt(x, id.vars = c(vname,"Constituency.Name"))
+  ggplot(melted, aes_string(x=vname,y="value",colour="variable"))+stat_smooth()+scale_colour_manual(values=c("GRN" = "green","UKIP"="purple","Con"="blue","Lab"="red","SNP"="yellow","LD"="orange","Grn" = "green"))+ggtitle(title)
 }
-write.csv(x=dm, file = "dm.csv")
 library(gridExtra)
 grid.arrange(prepare("diff17","%points difference between YG2017 and GE2015"),prepare("diff15", "%points difference between GE2015 and GE2010"))
+grid.arrange(prepare("diff17","%points difference between YG2017 and GE2015","leave_pos"),prepare("diff15", "%points difference between GE2015 and GE2010","leave_pos"))
+write.csv(x=dm, file = "dm.csv")
 
 lm(leave*100 ~ pct.Lab + pct.LD + pct.Con + pct.UKIP, mm[mm$year == 2017,])
+
+results = read.csv("results.csv")
+yd = read.csv("yougov.csv")
+names(results)[2:4] = c("Constituency.Name","Party.Name","share")
+m = merge(yd, results,by=c("Constituency.Name","Party.Name"))
+m$diff = m$share - m$est
+aggregate(diff ~ Party.Name, m, median)
+setdiff(unique(results$Constituency.Name), unique(m$Constituency.Name))
